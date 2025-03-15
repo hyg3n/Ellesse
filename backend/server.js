@@ -2,7 +2,8 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const helmet = require("helmet");
-const providersRouter = require("./routes/providers");
+const usersRouter = require("./routes/users");
+const authRouter = require("./routes/auth");
 const notFoundHandler = require("./middlewares/notFoundHandler");
 const errorHandler = require("./middlewares/errorHandler");
 require("dotenv").config();
@@ -15,6 +16,9 @@ app.use(helmet());
 app.use(cors());
 app.use(bodyParser.json());
 
+// Debugging: Check if JWT_SECRET is loaded
+console.log("JWT_SECRET:", process.env.JWT_SECRET);
+
 // Logging Middleware
 app.use((req, res, next) => {
   console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
@@ -22,7 +26,8 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use("/api/providers", providersRouter);
+app.use("/api/users", usersRouter);
+app.use("/api/auth", authRouter); 
 
 // 404 Handler
 app.use(notFoundHandler);
