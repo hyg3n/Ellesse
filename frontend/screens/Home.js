@@ -11,15 +11,18 @@ import {
   PermissionsAndroid,
   Platform,
   Alert,
+  TouchableOpacity,
 } from 'react-native';
 import MapView, {Marker, PROVIDER_GOOGLE} from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import axios from 'axios';
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {iconsMap} from '../assets/icons/categoryIcons'; 
 
-const Home = () => {
+const Home = ({navigation}) => {
   const [service, setService] = useState('');
   const [providers, setProviders] = useState([]);
+  const [categories, setCategories] = useState([]); // State for service categories
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [showMap, setShowMap] = useState(false);
@@ -72,11 +75,11 @@ const Home = () => {
     setMessage('');
     try {
       // Retrieve the token from AsyncStorage
-      const token = await AsyncStorage.getItem("token");
+      const token = await AsyncStorage.getItem('token');
       // Attach token in the Authorization header
       const response = await axios.get(
         `http://10.0.2.2:3000/api/users?service_name=${trimmedService}`,
-        { headers: { Authorization: `Bearer ${token}` } }
+        {headers: {Authorization: `Bearer ${token}`}},
       );
       console.log('API Response:', response.data);
       if (response.data.length === 0) {
@@ -93,7 +96,32 @@ const Home = () => {
       setLoading(false);
     }
   };
-  
+
+  // Fetch service categories when no search term is entered
+  useEffect(() => {
+    const fetchCategories = async () => {
+      if (service.trim() !== '') {
+        setCategories([]); // Hide categories if user is searching
+        return;
+      }
+      try {
+        const token = await AsyncStorage.getItem('token');
+        const response = await axios.get(
+          'http://10.0.2.2:3000/api/service_categories',
+          {
+            headers: {Authorization: `Bearer ${token}`},
+          },
+        );
+        if (response.data) {
+          setCategories(response.data);
+        }
+      } catch (error) {
+        console.error('Error fetching categories:', error);
+      }
+    };
+
+    fetchCategories();
+  }, [service]);
 
   if (showMap) {
     return (
@@ -160,16 +188,53 @@ const Home = () => {
         />
       )}
       {message ? <Text style={styles.message}>{message}</Text> : null}
+
+      {/* Show categories area only if no search term is active */}
+      {service.trim() === '' && categories.length > 0 && (
+        <View style={styles.categoriesContainer}>
+          <Text style={styles.subtitle}>Browse Services:</Text>
+          <FlatList
+            data={categories}
+            keyExtractor={item => item.id.toString()}
+            numColumns={2} // <-- Use 2 columns for grid layout
+            columnWrapperStyle={styles.columnWrapper} // optional style for row spacing
+            renderItem={({item}) => {
+              const Icon = iconsMap[item.icon_path];
+              return (
+                <TouchableOpacity
+                  style={styles.categoryTab}
+                  onPress={() =>
+                    navigation.navigate('CategoryDetails', {category: item})
+                  }>
+                  <View style={styles.categoryContent}>
+                    {Icon && <Icon width={50} height={50} />}
+                    <Text style={styles.categoryText}>{item.name}</Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        </View>
+      )}
+
       <FlatList
         data={providers}
         keyExtractor={item => item.id.toString()}
         renderItem={({item}) => (
-          <View style={styles.provider}>
+          <TouchableOpacity
+            style={styles.provider}
+            onPress={() => navigation.navigate('NewBooking', {provider: item})}>
             <Text style={styles.name}>{item.name}</Text>
             <Text>
               {item.service_name} - £{item.price} - {item.rating}★
             </Text>
-          </View>
+            <Button
+              title="Book"
+              onPress={() =>
+                navigation.navigate('NewBooking', {provider: item})
+              }
+            />
+          </TouchableOpacity>
         )}
         ListEmptyComponent={
           !loading && !message ? (
@@ -216,6 +281,30 @@ const styles = StyleSheet.create({
     left: 20,
     right: 20,
     zIndex: 999,
+  },
+  categoriesContainer: {marginVertical: 20},
+  subtitle: {fontSize: 18, fontWeight: 'bold', marginBottom: 10},
+  columnWrapper: {justifyContent: 'space-between', marginBottom: 10},
+  categoryTab: {
+    backgroundColor: '',
+    borderRadius: 8,
+    width: '48%',
+    paddingVertical: 16,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+  },
+  categoryContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  categoryText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 15,
+    flexShrink: 1,
+    maxWidth: '75%',
   },
 });
 

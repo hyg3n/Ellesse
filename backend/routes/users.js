@@ -7,7 +7,7 @@ const router = express.Router();
 
 router.get(
   "/",
-  authenticateUser,  // 🔹 First, check if user is authenticated
+  authenticateUser,  // check if user is authenticated
   [
     query("service_name")
       .exists().withMessage("Service query parameter is required")
@@ -16,7 +16,7 @@ router.get(
       .notEmpty().withMessage("Service cannot be empty")
       .isLength({ max: 50 }).withMessage("Service must be at most 50 characters long"),
   ],
-  getProviders  // 🔹 Finally, fetch providers if all checks pass
+  getProviders  // fetch providers if all checks pass
 );
 
 module.exports = router;

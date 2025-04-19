@@ -1,7 +1,7 @@
-// models/usersModel.js
+// models/providersByCategoryModel.js
 const pool = require("../config/database");
 
-const getProvidersByService = async (service) => {
+const getProvidersByCategory = async (category) => {
   const query = `
     SELECT 
       u.id, 
@@ -16,14 +16,13 @@ const getProvidersByService = async (service) => {
     FROM provider_services ps
     JOIN users u ON ps.user_id = u.id
     JOIN services s ON ps.service_id = s.id
-    WHERE LOWER(s.name) = LOWER($1) AND u.role LIKE '%provider%';
+    JOIN service_categories sc ON s.category_id = sc.id
+    WHERE LOWER(sc.name) = LOWER($1) AND u.role LIKE '%provider%';
   `;
-  const values = [service];
-  const result = await pool.query(query, values);
-  return result.rows;
+  const values = [category];
+  const { rows } = await pool.query(query, values);
+  return rows;
 };
 
 
-module.exports = {
-  getProvidersByService,
-};
+module.exports = { getProvidersByCategory };
