@@ -4,6 +4,7 @@ import {GiftedChat} from 'react-native-gifted-chat';
 import io from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import {v4 as uuidv4} from 'uuid';
 
 const ChatScreen = ({route, navigation}) => {
   const {booking} = route.params; // Booking object from previous screen
@@ -58,7 +59,7 @@ const ChatScreen = ({route, navigation}) => {
         setMessages(prevMessages => {
           // Ensure no duplicates exist by checking _id or clientId
           const existingMessage = prevMessages.find(
-            m => m._id === message.id || m.clientId === message.clientId,
+            m => m._id === message.id || m.clientId === message.client_id
           );
           if (!existingMessage) {
             return GiftedChat.append(prevMessages, convertToGifted(message));
@@ -78,26 +79,25 @@ const ChatScreen = ({route, navigation}) => {
   // Optimistic update with deduplication
   const onSend = useCallback(
     (newMessages = []) => {
-      const tempId = 'temp-' + Date.now();
+      const clientId = uuidv4(); // Generate UUID
+
       const optimisticMessage = {
         ...newMessages[0],
-        _id: tempId,
-        clientId: tempId,
+        _id: clientId,
+        clientId: clientId,
         createdAt: new Date(),
       };
 
-      // Add optimistic message
       setMessages(prevMessages =>
         GiftedChat.append(prevMessages, [optimisticMessage]),
       );
 
-      // Emit message via socket
       if (socket) {
         socket.emit('sendMessage', {
           booking_id: booking.id,
           receiver_id: booking.provider_id,
           message: optimisticMessage.text,
-          clientId: tempId, // Send clientId to track duplicates
+          clientId: clientId, // Send it
         });
       }
     },

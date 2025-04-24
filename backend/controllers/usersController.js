@@ -10,11 +10,11 @@ const getProviders = async (req, res) => {
   }
 
   const { service_name } = req.query;
-  console.log('🔍 Received service_name:', service_name);
+  console.log('Received service_name:', service_name);
 
   try {
     const users = await getProvidersByService(service_name);
-    console.log('✅ Users fetched:', users);
+    console.log('Users fetched:', users);
     res.json(users);
   } catch (error) {
     console.error("❌ Error fetching users:", error.message);

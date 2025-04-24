@@ -6,6 +6,7 @@ import {createBottomTabNavigator} from '@react-navigation/bottom-tabs';
 import {createStackNavigator} from '@react-navigation/stack';
 import {Icon} from 'react-native-elements';
 import {AuthProvider, AuthContext} from './context/AuthContext'; 
+import 'react-native-get-random-values';
 
 import Home from './screens/Home';
 import Bookings from './screens/Bookings';

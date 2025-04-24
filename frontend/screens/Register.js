@@ -20,7 +20,7 @@ const Register = ({ navigation }) => {
 
       if (response.ok) {
         Alert.alert("Success", "Registration successful!");
-        navigation.reset({ index: 0, routes: [{ name: "Login" }] }); // ✅ Correct navigation
+        navigation.reset({ index: 0, routes: [{ name: "Login" }] });
       } else {
         Alert.alert("Error", data.error || "Registration failed");
       }

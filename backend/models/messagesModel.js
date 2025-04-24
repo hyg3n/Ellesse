@@ -2,16 +2,17 @@
 
 const pool = require('../config/database');
 
-const storeMessage = async ({ booking_id, sender_id, receiver_id, message }) => {
+const storeMessage = async ({ booking_id, sender_id, receiver_id, message, client_id }) => {
   const query = `
-    INSERT INTO messages (booking_id, sender_id, receiver_id, message)
-    VALUES ($1, $2, $3, $4)
+    INSERT INTO messages (booking_id, sender_id, receiver_id, message, client_id)
+    VALUES ($1, $2, $3, $4, $5)
     RETURNING *;
   `;
-  const values = [booking_id, sender_id, receiver_id, message];
+  const values = [booking_id, sender_id, receiver_id, message, client_id];
   const { rows } = await pool.query(query, values);
   return rows[0];
 };
+
 
 const getMessagesByBooking = async (booking_id) => {
   const query = `

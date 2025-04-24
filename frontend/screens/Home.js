@@ -6,20 +6,21 @@ import {
   TextInput,
   Button,
   FlatList,
-  StyleSheet,
   ActivityIndicator,
   PermissionsAndroid,
   Platform,
-  Alert,
   TouchableOpacity,
+  StyleSheet
 } from 'react-native';
 import MapView, {Marker, PROVIDER_GOOGLE} from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {iconsMap} from '../assets/icons/categoryIcons'; 
+import {iconsMap} from '../assets/icons/categoryIcons';
+import {useTheme, Typography, Spacing} from '../styles/theme';
 
 const Home = ({navigation}) => {
+  const {palette, styles: themeStyles} = useTheme();
   const [service, setService] = useState('');
   const [providers, setProviders] = useState([]);
   const [categories, setCategories] = useState([]); // State for service categories
@@ -28,6 +29,7 @@ const Home = ({navigation}) => {
   const [showMap, setShowMap] = useState(false);
   const [region, setRegion] = useState(null);
 
+  // Request location permission and set region
   useEffect(() => {
     const requestLocationPermission = async () => {
       if (Platform.OS === 'android') {
@@ -125,10 +127,10 @@ const Home = ({navigation}) => {
 
   if (showMap) {
     return (
-      <View style={{flex: 1}}>
+      <View style={themeStyles.screen}>
         <MapView
           provider={PROVIDER_GOOGLE}
-          style={styles.map}
+          style={localStyles.map}
           initialRegion={
             region || {
               latitude: 37.7749,
@@ -147,68 +149,109 @@ const Home = ({navigation}) => {
                 longitude: provider.longitude,
               }}
               title={provider.name}
-              description={`${provider.service_name} - $${provider.price} - ${provider.rating}★`}
+              description={`${provider.service_name} - £${provider.price} - ${provider.rating}★`}
             />
           ))}
         </MapView>
-        <View style={styles.backButtonContainer}>
-          <Button title="Back to List" onPress={() => setShowMap(false)} />
+        <View style={localStyles.backButtonContainer}>
+          <Button
+            title="Back to List"
+            onPress={() => setShowMap(false)}
+            color={palette.primary}
+          />
         </View>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Service Search</Text>
+    <View style={themeStyles.container}>
+      <Text
+        style={[
+          Typography.h1,
+          {color: palette.text, textAlign: 'center', marginBottom: Spacing.m},
+        ]}>
+        Service Search
+      </Text>
+
       <TextInput
-        style={styles.input}
+        style={themeStyles.input}
         placeholder="Enter a service (e.g., Plumbing)"
+        placeholderTextColor={palette.placeholder}
         value={service}
         onChangeText={setService}
         autoCapitalize="none"
       />
-      <Button title="Search" onPress={searchProviders} />
+
+      <Button
+        title="Search"
+        onPress={searchProviders}
+        color={palette.primary}
+      />
+
       {providers.length > 0 && (
-        <View style={styles.fixedButtonContainer}>
+        <View style={localStyles.fixedButtonContainer}>
           <Button
             title="Show on Map"
-            onPress={() => {
-              setShowMap(true);
-            }}
-            color="#007BFF"
+            onPress={() => setShowMap(true)}
+            color={palette.primary}
           />
         </View>
       )}
+
       {loading && (
         <ActivityIndicator
           size="large"
-          color="#0000ff"
-          style={styles.loading}
+          color={palette.primary}
+          style={localStyles.loading}
         />
       )}
-      {message ? <Text style={styles.message}>{message}</Text> : null}
+
+      {message ? (
+        <Text
+          style={[
+            Typography.body,
+            {color: palette.error, textAlign: 'center', marginTop: Spacing.s},
+          ]}>
+          {message}
+        </Text>
+      ) : null}
 
       {/* Show categories area only if no search term is active */}
       {service.trim() === '' && categories.length > 0 && (
-        <View style={styles.categoriesContainer}>
-          <Text style={styles.subtitle}>Browse Services:</Text>
+        <View style={localStyles.categoriesContainer}>
+          <Text
+            style={[
+              Typography.subtitle,
+              {color: palette.text, marginBottom: Spacing.s},
+            ]}>
+            Browse Services:
+          </Text>
           <FlatList
             data={categories}
             keyExtractor={item => item.id.toString()}
-            numColumns={2} // <-- Use 2 columns for grid layout
-            columnWrapperStyle={styles.columnWrapper} // optional style for row spacing
+            numColumns={2}
+            columnWrapperStyle={localStyles.columnWrapper}
             renderItem={({item}) => {
               const Icon = iconsMap[item.icon_path];
               return (
                 <TouchableOpacity
-                  style={styles.categoryTab}
+                  style={[
+                    localStyles.categoryTab,
+                    {backgroundColor: palette.card},
+                  ]}
                   onPress={() =>
                     navigation.navigate('CategoryDetails', {category: item})
                   }>
-                  <View style={styles.categoryContent}>
+                  <View style={localStyles.categoryContent}>
                     {Icon && <Icon width={50} height={50} />}
-                    <Text style={styles.categoryText}>{item.name}</Text>
+                    <Text
+                      style={[
+                        Typography.body,
+                        {color: palette.text, maxWidth: '75%'},
+                      ]}>
+                      {item.name}
+                    </Text>
                   </View>
                 </TouchableOpacity>
               );
@@ -222,10 +265,16 @@ const Home = ({navigation}) => {
         keyExtractor={item => item.id.toString()}
         renderItem={({item}) => (
           <TouchableOpacity
-            style={styles.provider}
+            style={localStyles.provider}
             onPress={() => navigation.navigate('NewBooking', {provider: item})}>
-            <Text style={styles.name}>{item.name}</Text>
-            <Text>
+            <Text
+              style={[
+                Typography.body,
+                {fontWeight: 'bold', color: palette.text},
+              ]}>
+              {item.name}
+            </Text>
+            <Text style={[Typography.body, {color: palette.text}]}>
               {item.service_name} - £{item.price} - {item.rating}★
             </Text>
             <Button
@@ -233,12 +282,19 @@ const Home = ({navigation}) => {
               onPress={() =>
                 navigation.navigate('NewBooking', {provider: item})
               }
+              color={palette.primary}
             />
           </TouchableOpacity>
         )}
         ListEmptyComponent={
           !loading && !message ? (
-            <Text style={styles.message}>No providers to display.</Text>
+            <Text
+              style={[
+                Typography.body,
+                {color: palette.error, textAlign: 'center'},
+              ]}>
+              No providers to display.
+            </Text>
           ) : null
         }
       />
@@ -246,65 +302,40 @@ const Home = ({navigation}) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {flex: 1, padding: 20, backgroundColor: '#f5f5f5'},
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 5,
-    padding: 10,
-    marginBottom: 10,
-    backgroundColor: '#fff',
-  },
-  provider: {padding: 10, borderBottomWidth: 1, borderBottomColor: '#eee'},
-  name: {fontWeight: 'bold', fontSize: 16},
-  message: {marginTop: 10, color: 'red', textAlign: 'center'},
-  loading: {marginVertical: 20},
+const localStyles = StyleSheet.create({
   map: {flex: 1},
   fixedButtonContainer: {
     position: 'absolute',
-    bottom: 20,
+    bottom: Spacing.m,
     left: 0,
     right: 0,
-    paddingHorizontal: 20,
-    zIndex: 999,
+    paddingHorizontal: Spacing.m,
   },
+  loading: {marginVertical: Spacing.l},
   backButtonContainer: {
     position: 'absolute',
-    top: 40,
-    left: 20,
-    right: 20,
-    zIndex: 999,
+    top: Spacing.l,
+    left: Spacing.m,
+    right: Spacing.m,
   },
-  categoriesContainer: {marginVertical: 20},
-  subtitle: {fontSize: 18, fontWeight: 'bold', marginBottom: 10},
-  columnWrapper: {justifyContent: 'space-between', marginBottom: 10},
+  categoriesContainer: {marginVertical: Spacing.m},
+  columnWrapper: {justifyContent: 'space-between', marginBottom: Spacing.m},
   categoryTab: {
-    backgroundColor: '',
     borderRadius: 8,
     width: '48%',
-    paddingVertical: 16,
-    paddingHorizontal: 12,
+    paddingVertical: Spacing.m,
+    paddingHorizontal: Spacing.s,
     justifyContent: 'center',
   },
   categoryContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    width: '100%',
   },
-  categoryText: {
-    color: '#000',
-    fontWeight: 'bold',
-    fontSize: 15,
-    flexShrink: 1,
-    maxWidth: '75%',
+  provider: {
+    padding: Spacing.m,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#ccc',
   },
 });
 
