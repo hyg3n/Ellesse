@@ -1,126 +1,176 @@
 // screens/ChatScreen.js
-import React, {useState, useEffect, useCallback, useLayoutEffect} from 'react';
-import {GiftedChat} from 'react-native-gifted-chat';
+// - Loads chat meta to set the header title
+// - Loads the most-recent 20 messages, then paginates older ones on scroll
+// - Sends and receives messages via Socket.IO in realtime
+
+import React, {
+  useState,
+  useEffect,
+  useLayoutEffect,
+  useCallback,
+} from 'react';
+import {GiftedChat, SystemMessage} from 'react-native-gifted-chat';
 import io from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 import {v4 as uuidv4} from 'uuid';
+import {useTheme} from '../styles/theme';
 
 const ChatScreen = ({route, navigation}) => {
-  const {booking} = route.params; // Booking object from previous screen
+  const {chatId} = route.params;
+  const {palette} = useTheme();
+
+  // local state 
+  const [currentUserId, setCurrentUserId] = useState(null);
+  const [otherUserName, setOtherUserName] = useState('');
   const [messages, setMessages] = useState([]);
   const [socket, setSocket] = useState(null);
+  const [loadingEarlier, setLoadingEarlier] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
 
-  // Set up navigation header to show provider's name and a back button.
-  useLayoutEffect(() => {
-    navigation.setOptions({
-      headerShown: true,
-      title: booking.provider_name,
-    });
-  }, [navigation, booking.provider_name]);
+  // helper: convert backend message → GiftedChat message 
+  const toGifted = (m) =>
+    m.type === 'system'
+      ? {
+          _id: m.id,
+          text: m.message,
+          createdAt: new Date(m.created_at),
+          system: true,
+        }
+      : {
+          _id: m.id,
+          clientId: m.client_id || null,
+          text: m.message,
+          createdAt: new Date(m.created_at),
+          user: {_id: m.sender_id, name: m.sender_name},
+        };
 
-  // Fetch previous messages from the backend (fetch latest messages at the bottom)
+  // initial load (meta + latest 20 msgs) 
   useEffect(() => {
-    const fetchMessages = async () => {
+    (async () => {
       try {
         const token = await AsyncStorage.getItem('token');
-        const response = await axios.get(
-          `http://10.0.2.2:3000/api/messages?booking_id=${booking.id}`,
+        const decoded = JSON.parse(atob(token.split('.')[1]));
+        setCurrentUserId(decoded.id);
+
+        // get chat meta (other participant’s name)
+        const meta = await axios.get(
+          `http://10.0.2.2:3000/api/chats/${chatId}/meta`,
           {headers: {Authorization: `Bearer ${token}`}},
         );
+        setOtherUserName(meta.data.otherUserName);
 
-        if (response.data) {
-          const fetchedMessages = response.data.map(msg =>
-            convertToGifted(msg),
-          );
-          setMessages(fetchedMessages); // Reverse so latest messages appear at the bottom
-        }
-      } catch (error) {
-        console.error('Error fetching messages:', error);
+        // get newest 20 messages
+        const res = await axios.get(
+          `http://10.0.2.2:3000/api/messages/${chatId}?limit=20`,
+          {headers: {Authorization: `Bearer ${token}`}},
+        );
+        setMessages(res.data.map(toGifted));
+        if (res.data.length < 20) setHasMore(false);
+      } catch (err) {
+        console.error('Initial chat fetch failed:', err);
       }
-    };
+    })();
+  }, [chatId]);
 
-    fetchMessages();
-  }, [booking.id]);
+  // set header title once we know the other user’s name 
+  useLayoutEffect(() => {
+    if (otherUserName) {
+      navigation.setOptions({headerShown: true, title: otherUserName});
+    }
+  }, [navigation, otherUserName]);
 
-  // Set up Socket.IO connection for new messages
-  useEffect(() => {
-    const initializeSocket = async () => {
+  // load older messages when user scrolls up 
+  const onLoadEarlier = async () => {
+    if (loadingEarlier || !hasMore || messages.length === 0) return;
+    setLoadingEarlier(true);
+    try {
       const token = await AsyncStorage.getItem('token');
-      const newSocket = io('http://10.0.2.2:3000', {
-        auth: {token},
-      });
-      setSocket(newSocket);
+      const before = messages[messages.length - 1].createdAt.toISOString();
+      const res = await axios.get(
+        `http://10.0.2.2:3000/api/messages/${chatId}?limit=20&before=${before}`,
+        {headers: {Authorization: `Bearer ${token}`}},
+      );
+      setMessages((prev) => GiftedChat.prepend(prev, res.data.map(toGifted)));
+      if (res.data.length < 20) setHasMore(false);
+    } catch (err) {
+      console.error('Load earlier failed:', err);
+    } finally {
+      setLoadingEarlier(false);
+    }
+  };
 
-      // Join the room associated with the booking ID
-      newSocket.emit('joinRoom', booking.id);
+  // establish Socket.IO connection 
+  useEffect(() => {
+    (async () => {
+      const token = await AsyncStorage.getItem('token');
+      const sock = io('http://10.0.2.2:3000', {auth: {token}});
+      setSocket(sock);
 
-      newSocket.on('receiveMessage', message => {
-        setMessages(prevMessages => {
-          // Ensure no duplicates exist by checking _id or clientId
-          const existingMessage = prevMessages.find(
-            m => m._id === message.id || m.clientId === message.client_id
-          );
-          if (!existingMessage) {
-            return GiftedChat.append(prevMessages, convertToGifted(message));
-          }
-          return prevMessages;
-        });
-      });
-    };
+      sock.on('connect', () => chatId && sock.emit('joinRoom', chatId));
 
-    initializeSocket();
+      sock.on('receiveMessage', (m) =>
+        setMessages((prev) =>
+          prev.some((x) => x._id === m.id || x.clientId === m.client_id)
+            ? prev
+            : GiftedChat.append(prev, toGifted(m)),
+        ),
+      );
+    })();
+    return () => socket?.disconnect();
+  }, [chatId]);
 
-    return () => {
-      if (socket) socket.disconnect();
-    };
-  }, [booking.id]);
-
-  // Optimistic update with deduplication
+  // send message (optimistic)
   const onSend = useCallback(
-    (newMessages = []) => {
-      const clientId = uuidv4(); // Generate UUID
+    (newMsgs) => {
+      const clientId = uuidv4();
+      const [m] = newMsgs;
 
-      const optimisticMessage = {
-        ...newMessages[0],
-        _id: clientId,
-        clientId: clientId,
-        createdAt: new Date(),
-      };
-
-      setMessages(prevMessages =>
-        GiftedChat.append(prevMessages, [optimisticMessage]),
+      // optimistic bubble
+      setMessages((prev) =>
+        GiftedChat.append(prev, [
+          {...m, _id: clientId, clientId, createdAt: new Date()},
+        ]),
       );
 
-      if (socket) {
-        socket.emit('sendMessage', {
-          booking_id: booking.id,
-          receiver_id: booking.provider_id,
-          message: optimisticMessage.text,
-          clientId: clientId, // Send it
-        });
-      }
+      // emit to backend
+      socket?.emit('sendMessage', {
+        chat_id: chatId,
+        message: m.text,
+        receiver_id: null,
+        clientId,
+      });
     },
-    [socket],
+    [socket, chatId],
   );
-
-  // Convert database messages to GiftedChat format
-  const convertToGifted = msg => ({
-    _id: msg.id,
-    clientId: msg.clientId || null,
-    text: msg.message,
-    createdAt: new Date(msg.created_at),
-    user: {
-      _id: msg.sender_id,
-      name: msg.sender_id === booking.user_id ? 'You' : booking.provider_name,
-    },
-  });
 
   return (
     <GiftedChat
       messages={messages}
-      onSend={messages => onSend(messages)}
-      user={{_id: booking.user_id}}
+      onSend={onSend}
+      user={{_id: currentUserId}}
+      loadEarlier={hasMore}
+      onLoadEarlier={onLoadEarlier}
+      isLoadingEarlier={loadingEarlier}
+      renderSystemMessage={(p) => (
+        <SystemMessage
+          {...p}
+          containerStyle={{
+            alignItems: 'center',
+            paddingVertical: 6,
+            marginVertical: 4,
+          }}
+          textStyle={{
+            color: palette.placeholder,
+            fontStyle: 'italic',
+            fontSize: 13,
+            textAlign: 'center',
+            maxWidth: '90%',
+          }}
+        />
+      )}
+      showUserAvatar
+      renderUsernameOnMessage
     />
   );
 };

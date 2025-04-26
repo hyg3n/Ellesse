@@ -7,13 +7,15 @@ const bodyParser = require("body-parser");
 const helmet = require("helmet");
 const jwt = require("jsonwebtoken");
 
-const usersRouter = require("./routes/users");
+const providersRouter = require("./routes/providers");
 const authRouter = require("./routes/auth");
 const bookingsRouter = require("./routes/bookings");
 const chatsRouter = require('./routes/chats');
 const messagesRouter = require("./routes/messages");
 const serviceCategoriesRouter = require("./routes/serviceCategories");
 const providersByCategoryRouter = require("./routes/providersByCategory");
+const servicesByCategoryRouter = require("./routes/servicesByCategory");
+const becomeProviderRouter = require('./routes/becomeProvider');
 
 const notFoundHandler = require("./middlewares/notFoundHandler");
 const errorHandler = require("./middlewares/errorHandler");
@@ -39,13 +41,15 @@ app.use((req, res, next) => {
 });
 
 // Routes
-app.use("/api/users", usersRouter);
+app.use("/api/providers", providersRouter);
 app.use("/api/auth", authRouter);
 app.use("/api/bookings", bookingsRouter);
 app.use('/api/chats', chatsRouter);
 app.use("/api/messages", messagesRouter);
 app.use("/api/service_categories", serviceCategoriesRouter);
 app.use("/api/providersByCategory", providersByCategoryRouter);
+app.use("/api/servicesByCategory", servicesByCategoryRouter);
+app.use('/api/becomeProvider', becomeProviderRouter);
 
 // 404 Handler
 app.use(notFoundHandler);

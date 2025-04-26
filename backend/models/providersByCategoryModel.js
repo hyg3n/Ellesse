@@ -4,7 +4,8 @@ const pool = require("../config/database");
 const getProvidersByCategory = async (category) => {
   const query = `
     SELECT 
-      u.id, 
+      ps.id    AS ps_id,  
+      u.id     AS user_id,
       u.name, 
       u.email, 
       u.phone_number, 
@@ -23,6 +24,5 @@ const getProvidersByCategory = async (category) => {
   const { rows } = await pool.query(query, values);
   return rows;
 };
-
 
 module.exports = { getProvidersByCategory };

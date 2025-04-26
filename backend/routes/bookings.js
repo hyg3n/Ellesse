@@ -7,7 +7,7 @@ const authenticateUser = require('../middlewares/authMiddleware'); // Use your J
 
 // POST /api/bookings - Create a new booking request
 router.post('/', authenticateUser, async (req, res) => {
-  const { provider_id, description } = req.body;
+  const { provider_id, provider_service_id, description } = req.body;
   const user_id = req.user.id; // Provided by authenticateUser
 
   if (!provider_id) {
@@ -15,7 +15,7 @@ router.post('/', authenticateUser, async (req, res) => {
   }
 
   try {
-    const booking = await createBooking({ user_id, provider_id, description });
+    const booking = await createBooking({ user_id, provider_id, provider_service_id, description });
     res.status(201).json(booking);
   } catch (err) {
     console.error('Error creating booking:', err);

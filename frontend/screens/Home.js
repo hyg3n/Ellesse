@@ -10,7 +10,7 @@ import {
   PermissionsAndroid,
   Platform,
   TouchableOpacity,
-  StyleSheet
+  StyleSheet,
 } from 'react-native';
 import MapView, {Marker, PROVIDER_GOOGLE} from 'react-native-maps';
 import Geolocation from '@react-native-community/geolocation';
@@ -28,6 +28,48 @@ const Home = ({navigation}) => {
   const [loading, setLoading] = useState(false);
   const [showMap, setShowMap] = useState(false);
   const [region, setRegion] = useState(null);
+
+  // Dynamic styles based on theme
+  const localStyles = StyleSheet.create({
+    map: {flex: 1},
+    fixedButtonContainer: {
+      position: 'absolute',
+      bottom: Spacing.m,
+      left: 0,
+      right: 0,
+      paddingHorizontal: Spacing.m,
+    },
+    loading: {marginVertical: Spacing.l},
+    backButtonContainer: {
+      position: 'absolute',
+      top: Spacing.l,
+      left: Spacing.m,
+      right: Spacing.m,
+    },
+    categoriesContainer: {marginVertical: Spacing.m},
+    columnWrapper: {justifyContent: 'space-between', marginBottom: Spacing.m},
+    categoryTab: {
+      borderRadius: 8,
+      width: '48%',
+      paddingVertical: Spacing.m,
+      paddingHorizontal: Spacing.s,
+      justifyContent: 'center',
+      backgroundColor: palette.card,
+    },
+    categoryContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    provider: {
+      padding: Spacing.m,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: palette.border,
+      backgroundColor: palette.card,
+      borderRadius: 8,
+      marginBottom: Spacing.s,
+    },
+  });
 
   // Request location permission and set region
   useEffect(() => {
@@ -80,7 +122,7 @@ const Home = ({navigation}) => {
       const token = await AsyncStorage.getItem('token');
       // Attach token in the Authorization header
       const response = await axios.get(
-        `http://10.0.2.2:3000/api/users?service_name=${trimmedService}`,
+        `http://10.0.2.2:3000/api/providers?service_name=${trimmedService}`,
         {headers: {Authorization: `Bearer ${token}`}},
       );
       console.log('API Response:', response.data);
@@ -165,7 +207,7 @@ const Home = ({navigation}) => {
   }
 
   return (
-    <View style={themeStyles.container}>
+    <View style={[themeStyles.screen, {padding: Spacing.m}]}>
       <Text
         style={[
           Typography.h1,
@@ -286,57 +328,9 @@ const Home = ({navigation}) => {
             />
           </TouchableOpacity>
         )}
-        ListEmptyComponent={
-          !loading && !message ? (
-            <Text
-              style={[
-                Typography.body,
-                {color: palette.error, textAlign: 'center'},
-              ]}>
-              No providers to display.
-            </Text>
-          ) : null
-        }
       />
     </View>
   );
 };
-
-const localStyles = StyleSheet.create({
-  map: {flex: 1},
-  fixedButtonContainer: {
-    position: 'absolute',
-    bottom: Spacing.m,
-    left: 0,
-    right: 0,
-    paddingHorizontal: Spacing.m,
-  },
-  loading: {marginVertical: Spacing.l},
-  backButtonContainer: {
-    position: 'absolute',
-    top: Spacing.l,
-    left: Spacing.m,
-    right: Spacing.m,
-  },
-  categoriesContainer: {marginVertical: Spacing.m},
-  columnWrapper: {justifyContent: 'space-between', marginBottom: Spacing.m},
-  categoryTab: {
-    borderRadius: 8,
-    width: '48%',
-    paddingVertical: Spacing.m,
-    paddingHorizontal: Spacing.s,
-    justifyContent: 'center',
-  },
-  categoryContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  provider: {
-    padding: Spacing.m,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#ccc',
-  },
-});
 
 export default Home;

@@ -1,35 +1,55 @@
-import React, { createContext, useState, useEffect } from "react";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import React, {createContext, useState, useEffect, useMemo} from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {Buffer} from 'buffer';
 
 export const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [isAuthenticated, setIsAuthenticated] = useState(null);
+function decodeUserFromToken(token) {
+  if (!token) return {};
+  try {
+    const payload = JSON.parse(
+      Buffer.from(token.split('.')[1], 'base64').toString('utf8'),
+    );
+    const {id, role, name, avatar, email} = payload;
+    return {id, role, name, avatar, email};
+  } catch (error) {
+    console.error('Failed to decode token:', error);
+    return {};
+  }
+}
 
-  // Check authentication status on app load
+export const AuthProvider = ({children}) => {
+  const [isAuthenticated, setIsAuthenticated] = useState(null);
+  const [currentUser, setCurrentUser] = useState({});
+
+  // On mount, load token & initialise auth + user
   useEffect(() => {
-    const checkAuth = async () => {
-      const token = await AsyncStorage.getItem("token");
+    (async () => {
+      const token = await AsyncStorage.getItem('token');
       setIsAuthenticated(!!token);
-    };
-    checkAuth();
+      if (token) {
+        setCurrentUser(decodeUserFromToken(token));
+      }
+    })();
   }, []);
 
-  // Login function
-  const login = async (token) => {
-    await AsyncStorage.setItem("token", token);
+  const login = async token => {
+    await AsyncStorage.setItem('token', token);
     setIsAuthenticated(true);
+    setCurrentUser(decodeUserFromToken(token));
   };
 
-  // Logout function
   const logout = async () => {
-    await AsyncStorage.removeItem("token");
+    await AsyncStorage.removeItem('token');
     setIsAuthenticated(false);
+    setCurrentUser({});
   };
 
-  return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
-      {children}
-    </AuthContext.Provider>
+  // Only change reference when something actually changes
+  const value = useMemo(
+    () => ({isAuthenticated, currentUser, login, logout}),
+    [isAuthenticated, currentUser],
   );
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

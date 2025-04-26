@@ -1,4 +1,4 @@
-// models/usersModel.js
+// models/providersModel.js
 const pool = require("../config/database");
 
 const getProvidersByService = async (service) => {

@@ -1,5 +1,5 @@
-// controllers/usersController.js
-const { getProvidersByService } = require("../models/usersModel");
+// controllers/providersController.js
+const { getProvidersByService } = require("../models/providersModel");
 const { validationResult } = require("express-validator");
 
 const getProviders = async (req, res) => {
@@ -13,11 +13,11 @@ const getProviders = async (req, res) => {
   console.log('Received service_name:', service_name);
 
   try {
-    const users = await getProvidersByService(service_name);
-    console.log('Users fetched:', users);
-    res.json(users);
+    const providers = await getProvidersByService(service_name);
+    console.log('Providers fetched:', providers);
+    res.json(providers);
   } catch (error) {
-    console.error("❌ Error fetching users:", error.message);
+    console.error("Error fetching providers:", error.message);
     console.error(error.stack);
     res.status(500).json({ error: "Internal Server Error" });
   }
