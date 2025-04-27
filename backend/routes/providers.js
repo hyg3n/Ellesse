@@ -2,7 +2,7 @@
 
 const express = require("express");
 const { query } = require("express-validator");
-const { getProviders } = require("../controllers/providersController");
+const { getProviders } = require("../controllers/providersFindingController");
 const authenticateUser = require("../middlewares/authMiddleware");
 
 const router = express.Router();

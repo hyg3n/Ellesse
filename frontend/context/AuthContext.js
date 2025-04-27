@@ -21,34 +21,42 @@ function decodeUserFromToken(token) {
 export const AuthProvider = ({children}) => {
   const [isAuthenticated, setIsAuthenticated] = useState(null);
   const [currentUser, setCurrentUser] = useState({});
+  const [activeView, setActiveView] = useState('user');
 
   // On mount, load token & initialise auth + user
   useEffect(() => {
     (async () => {
       const token = await AsyncStorage.getItem('token');
+      const storedView = await AsyncStorage.getItem('activeView');
       setIsAuthenticated(!!token);
       if (token) {
         setCurrentUser(decodeUserFromToken(token));
+        setActiveView(storedView || 'user');
       }
     })();
   }, []);
 
   const login = async token => {
-    await AsyncStorage.setItem('token', token);
+    await AsyncStorage.multiSet([
+      ['token', token],
+      ['activeView', 'user'],
+    ]);
     setIsAuthenticated(true);
     setCurrentUser(decodeUserFromToken(token));
+    setActiveView('user');
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem('token');
+    await AsyncStorage.multiRemove(['token', 'activeView']);
     setIsAuthenticated(false);
     setCurrentUser({});
+    setActiveView('user');
   };
 
   // Only change reference when something actually changes
   const value = useMemo(
-    () => ({isAuthenticated, currentUser, login, logout}),
-    [isAuthenticated, currentUser],
+    () => ({isAuthenticated, currentUser, activeView, setActiveView, login, logout}),
+    [isAuthenticated, currentUser, activeView],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

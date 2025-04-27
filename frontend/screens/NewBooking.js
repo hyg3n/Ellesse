@@ -1,4 +1,5 @@
 // screens/NewBooking.js
+
 import React, {useState} from 'react';
 import {useNavigation} from '@react-navigation/native';
 import {
@@ -9,48 +10,109 @@ import {
   Alert,
   ScrollView,
   StyleSheet,
+  Platform,
+  ActivityIndicator,
 } from 'react-native';
+import DateTimePickerModal from 'react-native-modal-datetime-picker';
 import axios from 'axios';
+import { useStripe } from '@stripe/stripe-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useTheme, Typography, Spacing} from '../styles/theme';
 
+async function getAuthHeaders() {
+  const token = await AsyncStorage.getItem('token');
+  return token ? {Authorization: `Bearer ${token}`} : {};
+}
+
 const NewBooking = ({route}) => {
-  const {provider} = route.params; // Provider details passed from Home screen
-  const {palette, styles: themeStyles} = useTheme();
+  const {provider} = route.params;
+  const {palette, styles: themeStyles, scheme} = useTheme();
   const navigation = useNavigation();
+  const {initPaymentSheet, presentPaymentSheet} = useStripe();
+
   const [description, setDescription] = useState('');
-  const [dateTime, setDateTime] = useState('');
+  const [dateTime, setDateTime] = useState(null);
+  const [pickerVisible, setPickerVisible] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const requestBooking = async () => {
-    setLoading(true);
-    try {
-      const token = await AsyncStorage.getItem('token');
+  const showPicker = () => setPickerVisible(true);
+  const hidePicker = () => setPickerVisible(false);
 
-      // Create booking
+  const handleConfirm = date => {
+    setDateTime(date.toISOString());
+    hidePicker();
+  };
+
+  const requestBooking = async () => {
+    if (!dateTime) {
+      return Alert.alert(
+        'Missing appointment',
+        'Please choose an appointment time.',
+      );
+    }
+    setLoading(true);
+
+    try {
+      const headers = await getAuthHeaders();
+      // Create a manual‐capture PaymentIntent
+      const piRes = await fetch(
+        'http://10.0.2.2:3000/api/payments/create-payment-intent',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...headers,
+          },
+          body: JSON.stringify({amount: provider.price * 100}),
+        },
+      );
+      if (!piRes.ok) {
+        const err = await piRes.text();
+        throw new Error(`PaymentIntent creation failed: ${err}`);
+      }
+      const {clientSecret, paymentIntentId} = await piRes.json();
+
+      // Initialize & present the PaymentSheet
+      const { error: initError } = await initPaymentSheet({
+        merchantDisplayName: 'LSC',             
+        merchantCountryCode: 'GB',                   
+        paymentIntentClientSecret: clientSecret,
+         applePay: true,
+         googlePay: true,
+      });
+      if (initError) throw new Error(initError.message);
+
+      setLoading(false);
+      const {error: payError} = await presentPaymentSheet();
+      setLoading(true);
+
+      if (payError) {
+        Alert.alert('Payment failed', payError.message);
+        setLoading(false);
+        return;
+      }
+
+      // On payment success, create the booking with the PI id
       const bookingRes = await axios.post(
         'http://10.0.2.2:3000/api/bookings',
         {
           provider_id: provider.user_id,
           provider_service_id: provider.ps_id,
           description,
-          appointment: dateTime,
+          scheduled_at: dateTime,
+          payment_intent_id: paymentIntentId,
         },
-        {headers: {Authorization: `Bearer ${token}`}},
+        {headers},
       );
-      const booking = bookingRes.data;
 
-      // Find or create chat
-      const chatRes = await axios.post(
+      // Kick off chat & final alert
+      const {data: chatRes} = await axios.post(
         'http://10.0.2.2:3000/api/chats/findOrCreateChat',
-        {
-          otherUserId: provider.user_id,
-        },
-        {headers: {Authorization: `Bearer ${token}`}},
+        {otherUserId: provider.user_id},
+        {headers},
       );
-      const chatId = chatRes.data.chat.id;
+      const chatId = chatRes.chat.id;
 
-      // Send system message to chat
       await axios.post(
         'http://10.0.2.2:3000/api/messages',
         {
@@ -59,7 +121,7 @@ const NewBooking = ({route}) => {
           message: `Your booking request for '${provider.service_name}' has been sent.`,
           type: 'system',
         },
-        {headers: {Authorization: `Bearer ${token}`}},
+        {headers},
       );
 
       Alert.alert(
@@ -70,27 +132,25 @@ const NewBooking = ({route}) => {
             text: 'View Chat',
             onPress: () => navigation.navigate('ChatScreen', {chatId}),
           },
-          {
-            text: 'OK',
-            onPress: () => navigation.goBack(),
-            style: 'cancel',
-          },
+          {text: 'OK', onPress: () => navigation.goBack(), style: 'cancel'},
         ],
         {cancelable: false},
       );
-    } catch (error) {
-      console.error('Error creating booking or chat:', error);
-      Alert.alert('Error', 'Failed to create booking or open chat.');
+    } catch (err) {
+      console.error(err);
+      Alert.alert('Error', err.message || 'Something went wrong');
     } finally {
       setLoading(false);
     }
   };
 
+  const canSubmit = !!dateTime && !loading;
+
   return (
     <ScrollView
       style={themeStyles.container}
       contentContainerStyle={localStyles.scroll}>
-      {/* Provider info card */}
+      {/* Provider info */}
       <View
         style={[
           localStyles.card,
@@ -139,7 +199,7 @@ const NewBooking = ({route}) => {
         </View>
       </View>
 
-      {/* Date/time selector */}
+      {/* Appointment picker */}
       <Text
         style={[
           Typography.subtitle,
@@ -149,19 +209,28 @@ const NewBooking = ({route}) => {
       </Text>
       <TouchableOpacity
         style={[themeStyles.input, {justifyContent: 'center'}]}
-        onPress={() => {
-          /* TODO: open native date/time picker to set dateTime */
-        }}>
+        onPress={showPicker}>
         <Text
           style={[
             Typography.body,
             {color: dateTime ? palette.text : palette.placeholder},
           ]}>
-          {dateTime || 'Select date & time'}
+          {dateTime
+            ? new Date(dateTime).toLocaleString()
+            : 'Select date & time'}
         </Text>
       </TouchableOpacity>
 
-      {/* Description input */}
+      <DateTimePickerModal
+        isVisible={pickerVisible}
+        mode="datetime"
+        onConfirm={handleConfirm}
+        onCancel={hidePicker}
+        minimumDate={new Date()}
+        isDarkModeEnabled={scheme === 'dark'}
+      />
+
+      {/* Details */}
       <Text
         style={[
           Typography.subtitle,
@@ -178,17 +247,20 @@ const NewBooking = ({route}) => {
         multiline
       />
 
-      {/* Submit button */}
+      {/* Submit */}
       <TouchableOpacity
-        disabled={loading}
+        disabled={!canSubmit}
         style={[
           localStyles.submitButton,
-          {backgroundColor: palette.primary, opacity: loading ? 0.6 : 1},
+          {
+            backgroundColor: palette.primary,
+            opacity: canSubmit ? 1 : 0.5,
+          },
         ]}
         onPress={requestBooking}>
         <Text
           style={[localStyles.submitButtonText, {color: palette.background}]}>
-          {loading ? 'Sending...' : 'Request Booking'}
+          {loading ? 'Sending…' : 'Request Booking'}
         </Text>
       </TouchableOpacity>
     </ScrollView>
@@ -205,11 +277,9 @@ const localStyles = StyleSheet.create({
     borderRadius: Spacing.s,
     padding: Spacing.m,
     marginBottom: Spacing.l,
-    // Shadow for iOS
     shadowOpacity: 0.1,
     shadowOffset: {width: 0, height: 2},
     shadowRadius: 4,
-    // Elevation for Android
     elevation: 2,
   },
   rowInline: {

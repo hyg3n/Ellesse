@@ -1,4 +1,4 @@
-// controllers/providersController.js
+// controllers/providersFindingController.js
 const { getProvidersByService } = require("../models/providersModel");
 const { validationResult } = require("express-validator");
 

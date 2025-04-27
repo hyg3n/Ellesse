@@ -45,10 +45,6 @@ const BookingDetails = ({route, navigation}) => {
     <ScrollView
       style={themeStyles.container}
       contentContainerStyle={localStyles.scroll}>
-      <Text
-        style={[Typography.h2, {color: palette.text, marginBottom: Spacing.m}]}>
-        Booking Details
-      </Text>
 
       {/* Detail card */}
       <View

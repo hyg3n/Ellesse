@@ -1,4 +1,4 @@
-// controllers/providerController.js
+// controllers/providerOnboardingController.js
 const { validationResult } = require('express-validator');
 const {
   addProviderServicesForUser,

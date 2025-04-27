@@ -12,7 +12,12 @@ exports.issueAccessToken = async (userId) => {
 
   // Sign a token that includes id, role, name, and avatar
   return jwt.sign(
-    { id: userId, role, name, avatar },
+    {
+         id: userId, 
+         role, 
+         name, 
+         avatar
+        },
     process.env.JWT_SECRET,
     { expiresIn: '7d' }
   );

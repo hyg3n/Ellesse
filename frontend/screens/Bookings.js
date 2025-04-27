@@ -1,4 +1,6 @@
-import React, { useState, useEffect } from 'react';
+//screens/Bookings.js
+
+import React, {useState, useEffect} from 'react';
 import {
   View,
   Text,
@@ -9,9 +11,9 @@ import {
 } from 'react-native';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useTheme, Typography, Spacing } from '../styles/theme';
+import {useTheme, Typography, Spacing} from '../styles/theme';
 
-const Booking = ({ item, onPress, palette }) => {
+const Booking = ({item, onPress, palette}) => {
   const statusColor = getStatusColor(item.status, palette);
   return (
     <TouchableOpacity
@@ -24,28 +26,31 @@ const Booking = ({ item, onPress, palette }) => {
         },
       ]}
       onPress={onPress}
-      activeOpacity={0.8}
-    >
+      activeOpacity={0.8}>
       <View style={styles.accent} />
       <View style={styles.content}>
         <View style={styles.headerRow}>
-          <Text style={[Typography.subtitle, { color: palette.text }]}>
+          <Text style={[Typography.subtitle, {color: palette.text}]}>
             {item.provider_name}
           </Text>
-          <Text style={[Typography.subtitle, { color: palette.text }]}>  
+          <Text style={[Typography.subtitle, {color: palette.text}]}>
             {item.service_name}
           </Text>
         </View>
-        <Text style={[Typography.caption, { color: palette.text, marginTop: Spacing.xs }]}>  
+        <Text
+          style={[
+            Typography.caption,
+            {color: palette.text, marginTop: Spacing.xs},
+          ]}>
           {item.description || 'No details'}
         </Text>
         <View style={styles.metaRow}>
-          <View style={[styles.statusBadge, { borderColor: statusColor }]}>  
-            <Text style={[Typography.caption, { color: statusColor }]}>  
+          <View style={[styles.statusBadge, {borderColor: statusColor}]}>
+            <Text style={[Typography.caption, {color: statusColor}]}>
               {item.status.charAt(0).toUpperCase() + item.status.slice(1)}
             </Text>
           </View>
-          <Text style={[Typography.caption, { color: palette.text }]}>  
+          <Text style={[Typography.caption, {color: palette.text}]}>
             {new Date(item.created_at).toLocaleDateString(undefined, {
               month: 'short',
               day: 'numeric',
@@ -54,13 +59,13 @@ const Booking = ({ item, onPress, palette }) => {
           </Text>
         </View>
       </View>
-      <Text style={[styles.chevron, { color: palette.primary }]}>›</Text>
+      <Text style={[styles.chevron, {color: palette.primary}]}>›</Text>
     </TouchableOpacity>
   );
 };
 
-const Bookings = ({ navigation }) => {
-  const { palette, styles: themeStyles } = useTheme();
+const Bookings = ({navigation}) => {
+  const {palette, styles: themeStyles} = useTheme();
   const [bookings, setBookings] = useState([]);
   const [selectedFilter, setSelectedFilter] = useState('Upcoming');
   const [loading, setLoading] = useState(false);
@@ -75,7 +80,7 @@ const Bookings = ({ navigation }) => {
     try {
       const token = await AsyncStorage.getItem('token');
       const response = await axios.get('http://10.0.2.2:3000/api/bookings', {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: {Authorization: `Bearer ${token}`},
       });
       setBookings(response.data);
     } catch {
@@ -86,59 +91,85 @@ const Bookings = ({ navigation }) => {
   };
 
   const filters = ['Upcoming', 'Pending', 'History'];
-  const filtered = bookings.filter((b) => {
+  const filtered = bookings.filter(b => {
     const st = b.status.toLowerCase();
     if (selectedFilter === 'Upcoming') return st === 'accepted';
     if (selectedFilter === 'Pending') return st === 'pending';
-    if (selectedFilter === 'History') return ['declined', 'completed'].includes(st);
+    if (selectedFilter === 'History')
+      return ['declined', 'completed'].includes(st);
     return true;
   });
 
   return (
     <View style={themeStyles.container}>
-      <Text style={[Typography.h2, { color: palette.text, marginBottom: Spacing.m }]}>My Bookings</Text>
+      <Text
+        style={[Typography.h2, {color: palette.text, marginBottom: Spacing.m}]}>
+        My Bookings
+      </Text>
       <View style={styles.filterRow}>
-        {filters.map((f) => (
-          <TouchableOpacity
-            key={f}
-            onPress={() => setSelectedFilter(f)}
-            style={[
-              styles.filterTab,
-              selectedFilter === f && { backgroundColor: palette.primary, opacity: 0.2 },
-            ]}
-            activeOpacity={0.7}
-          >
-            <Text
-              style={[Typography.body, { color: selectedFilter === f ? palette.background : palette.text }]}
-            >
-              {f}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {filters.map(f => {
+          const isSel = selectedFilter === f;
+          return (
+            <TouchableOpacity
+              key={f}
+              onPress={() => setSelectedFilter(f)}
+              style={[
+                styles.filterTab,
+                isSel && {backgroundColor: palette.primary},
+              ]}
+              activeOpacity={0.7}>
+              <Text
+                style={[
+                  Typography.body,
+                  {color: isSel ? palette.background : palette.text},
+                ]}>
+                {f}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
       {loading ? (
-        <ActivityIndicator size="large" color={palette.primary} style={{ marginTop: Spacing.l }} />
+        <ActivityIndicator
+          size="large"
+          color={palette.primary}
+          style={{marginTop: Spacing.l}}
+        />
       ) : error ? (
-        <Text style={[Typography.body, { color: palette.error, textAlign: 'center', marginTop: Spacing.l }]}>
+        <Text
+          style={[
+            Typography.body,
+            {color: palette.error, textAlign: 'center', marginTop: Spacing.l},
+          ]}>
           {error}
         </Text>
       ) : (
         <FlatList
           data={filtered}
-          keyExtractor={(item) => item.booking_id.toString()}
-          renderItem={({ item }) => (
+          keyExtractor={item => item.booking_id.toString()}
+          renderItem={({item}) => (
             <Booking
               item={item}
               palette={palette}
               onPress={() =>
-                navigation.navigate('BookingDetails', { booking: item })
+                navigation.navigate('BookingDetails', {booking: item})
               }
             />
           )}
-          contentContainerStyle={{ paddingBottom: Spacing.l }}
+          contentContainerStyle={{paddingBottom: Spacing.l}}
           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
-            <Text style={[Typography.body, { color: palette.text, textAlign: 'center', marginTop: Spacing.l }]}>No bookings to show.</Text>
+            <Text
+              style={[
+                Typography.body,
+                {
+                  color: palette.text,
+                  textAlign: 'center',
+                  marginTop: Spacing.l,
+                },
+              ]}>
+              No bookings to show.
+            </Text>
           }
         />
       )}
@@ -182,7 +213,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.m,
     borderRadius: Spacing.l,
     shadowOpacity: 0.1,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: {width: 0, height: 2},
     shadowRadius: 4,
     elevation: 2,
     borderLeftWidth: 4,
@@ -194,7 +225,7 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: Spacing.l,
     marginRight: Spacing.m,
   },
-  content: { flex: 1 },
+  content: {flex: 1},
   headerRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',

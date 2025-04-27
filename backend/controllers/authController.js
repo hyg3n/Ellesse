@@ -62,7 +62,7 @@ const loginUser = async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
-        avatar: user.avatar_url, // may be null
+        avatar: user.avatar_url || undefined,
       },
     });
   } catch (error) {

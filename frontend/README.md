@@ -1,7 +1,7 @@
 
 # **Ellesse**
 
-Ellesse is a React Native application designed to connect users with local service providers, such as plumbers, tutors, and more. The app includes a map view for displaying nearby providers, a search functionality for specific services, and cross-platform compatibility for both Android and iOS.
+LSC is a React Native application designed to connect users with local service providers, such as plumbers, tutors, and more. The app includes a map view for displaying nearby providers, a search functionality for specific services, and cross-platform compatibility for both Android and iOS.
 
 ---
 

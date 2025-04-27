@@ -9,22 +9,27 @@ const jwt = require("jsonwebtoken");
 
 const providersRouter = require("./routes/providers");
 const authRouter = require("./routes/auth");
-const bookingsRouter = require("./routes/bookings");
 const chatsRouter = require('./routes/chats');
 const messagesRouter = require("./routes/messages");
 const serviceCategoriesRouter = require("./routes/serviceCategories");
 const providersByCategoryRouter = require("./routes/providersByCategory");
 const servicesByCategoryRouter = require("./routes/servicesByCategory");
 const becomeProviderRouter = require('./routes/becomeProvider');
+const providerServicesRouter = require("./routes/providerServices");
 
 const notFoundHandler = require("./middlewares/notFoundHandler");
 const errorHandler = require("./middlewares/errorHandler");
 const { storeMessage } = require("./models/messagesModel");
 
-require("dotenv").config();
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+require('dotenv').config();   
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
+console.log('Stripe secret key loaded:', !!process.env.STRIPE_SECRET_KEY);
+
 
 // Middleware
 app.use(helmet());
@@ -43,13 +48,17 @@ app.use((req, res, next) => {
 // Routes
 app.use("/api/providers", providersRouter);
 app.use("/api/auth", authRouter);
-app.use("/api/bookings", bookingsRouter);
+app.use("/api/bookings", require("./routes/bookings"));
 app.use('/api/chats', chatsRouter);
 app.use("/api/messages", messagesRouter);
 app.use("/api/service_categories", serviceCategoriesRouter);
 app.use("/api/providersByCategory", providersByCategoryRouter);
 app.use("/api/servicesByCategory", servicesByCategoryRouter);
 app.use('/api/becomeProvider', becomeProviderRouter);
+app.use("/api/provider", require("./routes/providerDashboard"));
+app.use("/api/provider/services", providerServicesRouter);
+app.use('/api/account', require('./routes/account'));
+app.use('/api/payments', require('./routes/payments'));
 
 // 404 Handler
 app.use(notFoundHandler);

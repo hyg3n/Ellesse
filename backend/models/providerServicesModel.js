@@ -1,10 +1,10 @@
 // models/providerServicesModel.js
-const pool = require('../config/database');
+const pool = require("../config/database");
 
 async function addProviderServicesForUser(userId, services) {
   const client = await pool.connect();
   try {
-    await client.query('BEGIN');
+    await client.query("BEGIN");
 
     // Update the user’s role to include “provider”
     await client.query(
@@ -33,15 +33,56 @@ async function addProviderServicesForUser(userId, services) {
       ]);
     }
 
-    await client.query('COMMIT');
+    await client.query("COMMIT");
   } catch (err) {
-    await client.query('ROLLBACK');
+    await client.query("ROLLBACK");
     throw err;
   } finally {
     client.release();
   }
 }
 
+async function getServicesByUser(userId) {
+  const { rows } = await pool.query(
+    `SELECT
+         id,
+         service_id,
+         price,
+         experience,
+         availability
+       FROM provider_services
+       WHERE user_id = $1`,
+    [userId]
+  );
+  return rows;
+}
+
+async function updateServiceById(id, { price, experience, availability }) {
+  const { rows } = await pool.query(
+    `UPDATE provider_services
+         SET price        = COALESCE($2, price),
+             experience   = COALESCE($3, experience),
+             availability = COALESCE($4::json, availability)
+       WHERE id = $1
+       RETURNING *`,
+    [id, price, experience, availability && JSON.stringify(availability)]
+  );
+  return rows[0];
+}
+
+async function deleteServiceById(id) {
+  const { rows } = await pool.query(
+    `DELETE FROM provider_services
+       WHERE id = $1
+       RETURNING id`,
+    [id]
+  );
+  return rows[0];
+}
+
 module.exports = {
   addProviderServicesForUser,
+  getServicesByUser,
+  updateServiceById,
+  deleteServiceById,
 };

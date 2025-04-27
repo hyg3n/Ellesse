@@ -16,13 +16,14 @@ const getProvidersByService = async (service) => {
     FROM provider_services ps
     JOIN users u ON ps.user_id = u.id
     JOIN services s ON ps.service_id = s.id
-    WHERE LOWER(s.name) = LOWER($1) AND u.role LIKE '%provider%';
+    WHERE s.name ILIKE $1
+      AND u.role LIKE '%provider%';
   `;
-  const values = [service];
+  // add the wildcards here
+  const values = [`%${service}%`];
   const result = await pool.query(query, values);
   return result.rows;
 };
-
 
 module.exports = {
   getProvidersByService,
